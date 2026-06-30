@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_metrics.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/widgets.dart';
 
 class QuickActionButton extends StatelessWidget {
   const QuickActionButton({
@@ -25,18 +27,29 @@ class QuickActionButton extends StatelessWidget {
         onTap();
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        duration: AppDurations.normal,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.md,
+        ),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadii.md),
           border: Border.all(color: AppColors.border),
+          boxShadow: AppShadows.card,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: AppColors.brandPrimary, size: 24),
-            const SizedBox(height: 8),
+            BadWalletIconBadge(
+              icon: icon,
+              size: 38,
+              iconSize: 20,
+              backgroundColor: AppColors.brandPrimaryLight,
+              color: AppColors.brandPrimary,
+              showBorder: false,
+            ),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               label,
               maxLines: 1,

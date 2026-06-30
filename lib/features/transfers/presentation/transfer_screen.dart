@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_metrics.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/money_formatter.dart';
 import '../../../core/widgets/widgets.dart';
@@ -12,37 +13,67 @@ import 'widgets/amount_keypad.dart';
 import 'widgets/receiver_avatar.dart';
 
 class TransferScreen extends StatelessWidget {
-  const TransferScreen({required this.phoneNumber, super.key, this.repository});
+  const TransferScreen({
+    required this.phoneNumber,
+    required this.availableBalance,
+    super.key,
+    this.currency = 'XOF',
+    this.repository,
+    this.embedded = false,
+    this.onExit,
+    this.onCompleted,
+  });
 
   final String phoneNumber;
+  final double availableBalance;
+  final String currency;
   final TransferRepository? repository;
+  final bool embedded;
+  final VoidCallback? onExit;
+  final ValueChanged<bool>? onCompleted;
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) =>
           TransferProvider(repository: repository ?? ApiTransferRepository()),
-      child: _TransferFlow(phoneNumber: phoneNumber),
+      child: _TransferForm(
+        phoneNumber: phoneNumber,
+        availableBalance: availableBalance,
+        currency: currency,
+        embedded: embedded,
+        onExit: onExit,
+        onCompleted: onCompleted,
+      ),
     );
   }
 }
 
-enum _TransferStep { form, confirmation, result }
-
-class _TransferFlow extends StatefulWidget {
-  const _TransferFlow({required this.phoneNumber});
+class _TransferForm extends StatefulWidget {
+  const _TransferForm({
+    required this.phoneNumber,
+    required this.availableBalance,
+    required this.currency,
+    required this.embedded,
+    this.onExit,
+    this.onCompleted,
+  });
 
   final String phoneNumber;
+  final double availableBalance;
+  final String currency;
+  final bool embedded;
+  final VoidCallback? onExit;
+  final ValueChanged<bool>? onCompleted;
 
   @override
-  State<_TransferFlow> createState() => _TransferFlowState();
+  State<_TransferForm> createState() => _TransferFormState();
 }
 
-class _TransferFlowState extends State<_TransferFlow> {
+class _TransferFormState extends State<_TransferForm> {
+  static const double _transferFee = 100;
+
   late final TextEditingController _receiverController;
-  _TransferStep _step = _TransferStep.form;
-  bool _resultSuccess = false;
-  String _resultMessage = '';
 
   @override
   void initState() {
@@ -56,326 +87,343 @@ class _TransferFlowState extends State<_TransferFlow> {
     super.dispose();
   }
 
-  void _goToConfirmation() {
+  void _exit() {
+    if (widget.onExit != null) {
+      widget.onExit!();
+      return;
+    }
+    Navigator.of(context).maybePop();
+  }
+
+  Future<void> _submit() async {
     FocusScope.of(context).unfocus();
     final provider = context.read<TransferProvider>();
     if (!provider.validateDraft(widget.phoneNumber)) {
       return;
     }
+
     _receiverController.text = provider.draft.receiverPhone;
-    setState(() => _step = _TransferStep.confirmation);
-  }
-
-  Future<void> _confirmTransfer() async {
-    HapticFeedback.mediumImpact();
-    final provider = context.read<TransferProvider>();
-    final receipt = await provider.submit(widget.phoneNumber);
-    final state = provider.state;
-
-    if (receipt != null && state is TransferSuccess) {
-      setState(() {
-        _resultSuccess = true;
-        _resultMessage = 'Transfert envoye a ${receipt.receiverPhone}.';
-        _step = _TransferStep.result;
-      });
+    final amount = provider.draft.amount;
+    final total = amount + _transferFee;
+    if (total > widget.availableBalance) {
+      provider.setDraftError(
+        amountError: 'Solde insuffisant pour couvrir le montant et les frais.',
+      );
       return;
     }
 
-    if (state is TransferError) {
-      setState(() {
-        _resultSuccess = false;
-        _resultMessage = state.message;
-        _step = _TransferStep.result;
-      });
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirmer le transfert'),
+          content: Text(
+            'Envoyer ${MoneyFormatter.format(amount, currency: widget.currency)} '
+            'vers ${provider.draft.receiverPhone} ?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Envoyer'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
     }
-  }
 
-  void _retry() {
-    setState(() => _step = _TransferStep.form);
-  }
+    HapticFeedback.mediumImpact();
+    final receipt = await provider.submit(widget.phoneNumber);
+    if (!mounted || receipt == null) {
+      return;
+    }
 
-  void _closeResult() {
-    Navigator.of(context).pop(_resultSuccess);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 260),
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeIn,
-          child: switch (_step) {
-            _TransferStep.form => _TransferForm(
-              key: const ValueKey('transfer-form'),
-              controller: _receiverController,
-              onContinue: _goToConfirmation,
-            ),
-            _TransferStep.confirmation => _TransferConfirmation(
-              key: const ValueKey('transfer-confirmation'),
-              onBack: () => setState(() => _step = _TransferStep.form),
-              onConfirm: _confirmTransfer,
-            ),
-            _TransferStep.result => _TransferResult(
-              key: const ValueKey('transfer-result'),
-              isSuccess: _resultSuccess,
-              message: _resultMessage,
-              onDone: _closeResult,
-              onRetry: _retry,
-            ),
-          },
-        ),
-      ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Transfert envoyé avec succès.')),
     );
+    widget.onCompleted?.call(true);
   }
-}
-
-class _TransferForm extends StatelessWidget {
-  const _TransferForm({
-    required this.controller,
-    required this.onContinue,
-    super.key,
-  });
-
-  final TextEditingController controller;
-  final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<TransferProvider>();
     final draft = provider.draft;
-    final amount = draft.amountDigits.isEmpty ? 0 : draft.amount;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 430),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ScreenHeader(
-                title: 'Transferer',
-                onBack: () => Navigator.of(context).maybePop(),
-              ),
-              const SizedBox(height: 20),
-              BadWalletCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        ReceiverAvatar(phoneNumber: draft.receiverPhone),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: BadWalletTextField(
-                            label: 'Destinataire',
-                            controller: controller,
-                            hintText: '+221 77 000 00 02',
-                            keyboardType: TextInputType.phone,
-                            textInputAction: TextInputAction.done,
-                            prefixIcon: Icons.phone_rounded,
-                            onChanged: provider.updateReceiver,
-                          ),
-                        ),
-                      ],
-                    ),
-                    _InlineError(message: draft.receiverError),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              BadWalletCard(
-                child: Column(
-                  children: [
-                    Text('Montant', style: AppTextStyles.labelMedium),
-                    const SizedBox(height: 8),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: Text(
-                        MoneyFormatter.format(amount),
-                        key: ValueKey(draft.amountDigits),
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.displayLarge.copyWith(
-                          color: amount > 0 ? AppColors.ink : AppColors.inkSoft,
-                        ),
-                      ),
-                    ),
-                    _InlineError(message: draft.amountError),
-                    const SizedBox(height: 18),
-                    AmountKeypad(
-                      onDigitPressed: provider.appendAmountDigit,
-                      onBackspacePressed: provider.deleteAmountDigit,
-                      onClearPressed: provider.clearAmount,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              BadWalletPrimaryButton(
-                label: 'Continuer',
-                icon: Icons.arrow_forward_rounded,
-                onPressed: draft.isEmpty ? null : onContinue,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TransferConfirmation extends StatelessWidget {
-  const _TransferConfirmation({
-    required this.onBack,
-    required this.onConfirm,
-    super.key,
-  });
-
-  final VoidCallback onBack;
-  final VoidCallback onConfirm;
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<TransferProvider>();
-    final draft = provider.draft;
+    final amount = draft.amount;
+    final fee = amount > 0 ? _transferFee : 0.0;
+    final total = amount + fee;
     final isLoading = provider.state is TransferLoading;
+    final isOverBalance = total > widget.availableBalance && amount > 0;
+    final canSubmit = !draft.isEmpty && !isLoading && !isOverBalance;
+    final errorMessage = provider.state is TransferError
+        ? (provider.state as TransferError).message
+        : null;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 430),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final content = ListView(
+      padding: AppInsets.screen.copyWith(bottom: AppSpacing.xxl),
+      children: [
+        BadWalletHeader(
+          title: 'Transférer',
+          onBack: _exit,
+          trailing: BadWalletIconBadge(
+            icon: Icons.help_outline_rounded,
+            color: AppColors.ink,
+            backgroundColor: AppColors.surface,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text('Destinataire', style: AppTextStyles.labelLarge),
+        const SizedBox(height: AppSpacing.sm),
+        BadWalletCard(
+          padding: AppInsets.compactCard,
+          child: Row(
             children: [
-              _ScreenHeader(title: 'Confirmation', onBack: onBack),
-              const SizedBox(height: 20),
-              BadWalletCard(
-                child: Column(
-                  children: [
-                    ReceiverAvatar(phoneNumber: draft.receiverPhone, size: 64),
-                    const SizedBox(height: 16),
-                    _SummaryRow(
-                      label: 'Destinataire',
-                      value: draft.receiverPhone,
-                    ),
-                    const Divider(),
-                    _SummaryRow(
-                      label: 'Montant',
-                      value: MoneyFormatter.format(draft.amount),
-                    ),
-                  ],
+              ReceiverAvatar(phoneNumber: draft.receiverPhone),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: BadWalletTextField(
+                  label: 'Numéro téléphone',
+                  controller: _receiverController,
+                  hintText: '+221 77 000 00 02',
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.done,
+                  onChanged: provider.updateReceiver,
                 ),
               ),
-              const SizedBox(height: 20),
-              BadWalletPrimaryButton(
-                label: 'Confirmer le transfert',
-                icon: Icons.verified_rounded,
-                isLoading: isLoading,
-                onPressed: isLoading ? null : onConfirm,
-              ),
             ],
           ),
         ),
-      ),
+        _InlineError(message: draft.receiverError),
+        const SizedBox(height: AppSpacing.md),
+        Text('Montant', style: AppTextStyles.labelLarge),
+        const SizedBox(height: AppSpacing.sm),
+        _AmountCard(
+          amount: amount,
+          currency: widget.currency,
+          onClear: provider.clearAmount,
+        ),
+        _InlineError(
+          message: isOverBalance
+              ? 'Le total dépasse votre solde disponible.'
+              : draft.amountError,
+        ),
+        Center(
+          child: Container(
+            margin: const EdgeInsets.only(top: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.brandPrimaryLight,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              'Solde disponible : ${MoneyFormatter.format(widget.availableBalance, currency: widget.currency)}',
+              style: AppTextStyles.labelMedium.copyWith(
+                color: AppColors.brandPrimary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _TransferSummaryCard(
+          fee: fee,
+          amount: amount,
+          total: total,
+          currency: widget.currency,
+        ),
+        if (errorMessage != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          _ErrorBanner(message: errorMessage),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        AmountKeypad(
+          onDigitPressed: provider.appendAmountDigit,
+          onBackspacePressed: provider.deleteAmountDigit,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        BadWalletPrimaryButton(
+          label: 'Envoyer',
+          icon: Icons.send_rounded,
+          isLoading: isLoading,
+          onPressed: canSubmit ? _submit : null,
+        ),
+      ],
     );
+
+    if (widget.embedded) {
+      return content;
+    }
+
+    return Scaffold(body: SafeArea(child: content));
   }
 }
 
-class _TransferResult extends StatelessWidget {
-  const _TransferResult({
-    required this.isSuccess,
-    required this.message,
-    required this.onDone,
-    required this.onRetry,
-    super.key,
+class _AmountCard extends StatelessWidget {
+  const _AmountCard({
+    required this.amount,
+    required this.currency,
+    required this.onClear,
   });
 
-  final bool isSuccess;
-  final String message;
-  final VoidCallback onDone;
-  final VoidCallback onRetry;
+  final double amount;
+  final String currency;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 430),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedResultIcon(isSuccess: isSuccess),
-              const SizedBox(height: 18),
-              Text(
-                isSuccess ? 'Transfert reussi' : 'Transfert echoue',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.headlineMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMedium,
-              ),
-              const SizedBox(height: 24),
-              BadWalletPrimaryButton(
-                label: isSuccess ? 'Retour au dashboard' : 'Modifier',
-                icon: isSuccess ? Icons.home_rounded : Icons.edit_rounded,
-                onPressed: isSuccess ? onDone : onRetry,
-              ),
-            ],
+    return BadWalletCard(
+      backgroundColor: AppColors.brandPrimary,
+      gradient: AppColors.balanceGradient,
+      borderColor: AppColors.brandPrimary,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedSwitcher(
+                  duration: AppDurations.normal,
+                  child: Text(
+                    amount > 0
+                        ? MoneyFormatter.format(amount, currency: currency)
+                        : '0 $currency',
+                    key: ValueKey(amount),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.displayLarge.copyWith(
+                      color: AppColors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  amount > 0 ? 'Montant à envoyer' : 'Saisissez un montant',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.white.withValues(alpha: 0.78),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          IconButton.filled(
+            onPressed: onClear,
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.white.withValues(alpha: 0.18),
+              foregroundColor: AppColors.white,
+            ),
+            icon: const Icon(Icons.close_rounded),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ScreenHeader extends StatelessWidget {
-  const _ScreenHeader({required this.title, required this.onBack});
+class _TransferSummaryCard extends StatelessWidget {
+  const _TransferSummaryCard({
+    required this.fee,
+    required this.amount,
+    required this.total,
+    required this.currency,
+  });
 
-  final String title;
-  final VoidCallback onBack;
+  final double fee;
+  final double amount;
+  final double total;
+  final String currency;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
-          tooltip: 'Retour',
-          onPressed: onBack,
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        const SizedBox(width: 8),
-        Text(title, style: AppTextStyles.headlineLarge),
-      ],
+    return BadWalletCard(
+      child: Column(
+        children: [
+          _SummaryRow(
+            label: 'Frais de transfert',
+            value: MoneyFormatter.format(fee, currency: currency),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SummaryRow(
+            label: 'Montant à envoyer',
+            value: MoneyFormatter.format(amount, currency: currency),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Divider(),
+          ),
+          _SummaryRow(
+            label: 'Total à débiter',
+            value: MoneyFormatter.format(total, currency: currency),
+            strong: true,
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.strong = false,
+  });
 
   final String label;
   final String value;
+  final bool strong;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    final style = strong
+        ? AppTextStyles.labelLarge.copyWith(color: AppColors.brandPrimary)
+        : AppTextStyles.bodyMedium.copyWith(color: AppColors.ink);
+
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: style)),
+        const SizedBox(width: AppSpacing.md),
+        Text(
+          value,
+          textAlign: TextAlign.right,
+          style: style.copyWith(fontWeight: FontWeight.w800),
+        ),
+      ],
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: AppInsets.compactCard,
+      decoration: BoxDecoration(
+        color: AppColors.errorSoft,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.22)),
+      ),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: AppTextStyles.bodyMedium)),
-          const SizedBox(width: 16),
-          Flexible(
+          const Icon(Icons.error_outline_rounded, color: AppColors.error),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
             child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: AppTextStyles.labelLarge,
+              message,
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error),
             ),
           ),
         ],
@@ -392,12 +440,12 @@ class _InlineError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 180),
+      duration: AppDurations.normal,
       child: message == null
-          ? const SizedBox(height: 12)
+          ? const SizedBox(height: AppSpacing.sm)
           : Padding(
               key: ValueKey(message),
-              padding: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
                 message!,
                 style: AppTextStyles.bodyMedium.copyWith(

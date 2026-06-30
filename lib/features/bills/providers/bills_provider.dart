@@ -36,6 +36,11 @@ class BillsLoaded extends BillsState {
 
   List<String> get selectedReferencesList => selectedReferences.toList();
 
+  bool get hasSelection => selectedReferences.isNotEmpty;
+
+  bool get allSelected =>
+      bills.isNotEmpty && selectedReferences.length == bills.length;
+
   BillsLoaded copyWith({
     BillService? service,
     List<Bill>? bills,
@@ -107,6 +112,18 @@ class BillsProvider extends ChangeNotifier {
     _setState(current.copyWith(selectedReferences: nextSelection));
   }
 
+  void toggleSelectAll() {
+    final current = _state;
+    if (current is! BillsLoaded || current.isPaying) {
+      return;
+    }
+
+    final nextSelection = current.allSelected
+        ? <String>{}
+        : current.bills.map((bill) => bill.reference).toSet();
+    _setState(current.copyWith(selectedReferences: nextSelection));
+  }
+
   Future<BillPaymentResult?> paySelected() async {
     final current = _state;
     if (current is! BillsLoaded || current.selectedReferences.isEmpty) {
@@ -117,8 +134,10 @@ class BillsProvider extends ChangeNotifier {
     try {
       final result = await repository.payBills(
         phoneNumber: phoneNumber,
+        walletCode: walletCode,
         service: current.service,
         references: current.selectedReferencesList,
+        fallbackTotal: current.selectedTotal,
       );
       _setState(current.copyWith(isPaying: false));
       return result;

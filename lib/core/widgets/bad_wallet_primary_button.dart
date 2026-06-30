@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_metrics.dart';
 import '../theme/app_text_styles.dart';
 
 class BadWalletPrimaryButton extends StatefulWidget {
@@ -56,32 +57,34 @@ class _BadWalletPrimaryButtonState extends State<BadWalletPrimaryButton> {
               }
             : null,
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 110),
+          duration: AppDurations.quick,
           curve: Curves.easeOut,
           scale: _isPressed ? 0.98 : 1,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
+            duration: AppDurations.normal,
             curve: Curves.easeOut,
             constraints: const BoxConstraints(minHeight: 56),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
             decoration: BoxDecoration(
               color: widget._isEnabled
                   ? AppColors.brandPrimary
-                  : AppColors.border,
+                  : AppColors.surfacePressed,
               gradient: widget._isEnabled ? AppColors.primaryGradient : null,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              border: Border.all(
+                color: widget._isEnabled
+                    ? AppColors.brandPrimary
+                    : AppColors.border,
+              ),
               boxShadow: widget._isEnabled
-                  ? [
-                      BoxShadow(
-                        color: AppColors.brandPrimary.withValues(alpha: 0.24),
-                        blurRadius: 18,
-                        offset: const Offset(0, 10),
-                      ),
-                    ]
-                  : null,
+                  ? AppShadows.colored(AppColors.brandPrimary)
+                  : AppShadows.none,
             ),
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
+              duration: AppDurations.normal,
               child: widget.isLoading
                   ? SizedBox(
                       key: const ValueKey('button-loader'),
@@ -101,7 +104,7 @@ class _BadWalletPrimaryButtonState extends State<BadWalletPrimaryButton> {
                       children: [
                         if (widget.icon != null) ...[
                           Icon(widget.icon, size: 20, color: foregroundColor),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: AppSpacing.xs),
                         ],
                         Flexible(
                           child: Text(

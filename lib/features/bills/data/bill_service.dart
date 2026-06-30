@@ -13,4 +13,22 @@ enum BillService {
   final String id;
   final String label;
   final bool isBackendSupported;
+
+  String get category {
+    return switch (this) {
+      BillService.ism => 'Internet',
+      BillService.woyafal => 'Eau',
+      BillService.rapido => 'Transport',
+      BillService.senelec => 'Électricité',
+    };
+  }
+
+  String get description {
+    return switch (this) {
+      BillService.ism => 'Internet - Fibre 50 Mbps',
+      BillService.woyafal => 'Eau - Abonnement',
+      BillService.rapido => 'Transport - Abonnement',
+      BillService.senelec => 'Électricité - Basse tension',
+    };
+  }
 }

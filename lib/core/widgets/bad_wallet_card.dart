@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_metrics.dart';
 
 class BadWalletCard extends StatelessWidget {
   const BadWalletCard({
     required this.child,
     super.key,
-    this.padding = const EdgeInsets.all(20),
+    this.padding = AppInsets.card,
     this.margin = EdgeInsets.zero,
     this.onTap,
     this.backgroundColor = AppColors.surface,
+    this.gradient,
+    this.borderColor = AppColors.border,
+    this.isElevated = true,
+    this.showBorder = true,
   });
 
   final Widget child;
@@ -18,6 +23,10 @@ class BadWalletCard extends StatelessWidget {
   final EdgeInsetsGeometry margin;
   final VoidCallback? onTap;
   final Color backgroundColor;
+  final Gradient? gradient;
+  final Color borderColor;
+  final bool isElevated;
+  final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
@@ -28,15 +37,10 @@ class BadWalletCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.brandPrimaryDark.withValues(alpha: 0.06),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: showBorder ? Border.all(color: borderColor) : null,
+        boxShadow: isElevated ? AppShadows.card : AppShadows.none,
       ),
       child: child,
     );

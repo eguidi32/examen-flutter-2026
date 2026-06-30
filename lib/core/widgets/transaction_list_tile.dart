@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../models/wallet_transaction.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_metrics.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/date_formatter.dart';
 import '../utils/money_formatter.dart';
+import 'bad_wallet_icon_badge.dart';
 
 class TransactionListTile extends StatelessWidget {
   const TransactionListTile({
@@ -33,43 +35,31 @@ class TransactionListTile extends StatelessWidget {
       color: AppColors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: compact ? 10 : 12),
+          padding: EdgeInsets.symmetric(
+            vertical: compact ? AppSpacing.sm : AppSpacing.md,
+          ),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: toneBackground,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: toneColor, size: 22),
+              BadWalletIconBadge(
+                icon: icon,
+                color: toneColor,
+                backgroundColor: toneBackground,
+                showBorder: false,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            transaction.titleFor(currentPhone),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.labelLarge,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          DateFormatter.time(transaction.createdAt),
-                          style: AppTextStyles.labelMedium,
-                        ),
-                      ],
+                    Text(
+                      transaction.titleFor(currentPhone),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.labelLarge,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       transaction.subtitleFor(currentPhone),
                       maxLines: 1,
@@ -79,18 +69,33 @@ class TransactionListTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.sm),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 118),
-                child: Text(
-                  MoneyFormatter.signedFormat(
-                    transaction.amount,
-                    isCredit: isCredit,
-                  ),
-                  maxLines: 2,
-                  textAlign: TextAlign.right,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.labelLarge.copyWith(color: toneColor),
+                constraints: const BoxConstraints(maxWidth: 132),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      MoneyFormatter.signedFormat(
+                        transaction.amount,
+                        isCredit: isCredit,
+                      ),
+                      maxLines: 1,
+                      textAlign: TextAlign.right,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.labelLarge.copyWith(
+                        color: toneColor,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      '${DateFormatter.groupLabel(transaction.createdAt)}, ${DateFormatter.time(transaction.createdAt)}',
+                      maxLines: 2,
+                      textAlign: TextAlign.right,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodyMedium.copyWith(fontSize: 12),
+                    ),
+                  ],
                 ),
               ),
             ],

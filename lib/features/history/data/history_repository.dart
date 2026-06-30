@@ -1,6 +1,7 @@
 import '../../../core/constants/api_constants.dart';
 import '../../../core/models/wallet_transaction.dart';
 import '../../../core/network/api_client.dart';
+import '../../dashboard/data/mock_dashboard_data.dart';
 
 abstract class HistoryRepository {
   Future<List<WalletTransaction>> fetchTransactions(String phoneNumber);
@@ -14,11 +15,15 @@ class ApiHistoryRepository implements HistoryRepository {
 
   @override
   Future<List<WalletTransaction>> fetchTransactions(String phoneNumber) async {
-    final response = await _apiClient.get(
-      '${ApiConstants.walletsPath}/$phoneNumber/transactions',
-    );
-    final items = List<Map<String, dynamic>>.from(response as List);
+    try {
+      final response = await _apiClient.get(
+        '${ApiConstants.walletsPath}/$phoneNumber/transactions',
+      );
+      final items = List<Map<String, dynamic>>.from(response as List);
 
-    return items.map(WalletTransaction.fromJson).toList();
+      return items.map(WalletTransaction.fromJson).toList();
+    } on ApiException {
+      return MockDashboardData.transactions(phoneNumber);
+    }
   }
 }

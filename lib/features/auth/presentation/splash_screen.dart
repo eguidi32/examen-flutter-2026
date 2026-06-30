@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_metrics.dart';
 import '../../../core/theme/app_text_styles.dart';
 import 'widgets/bad_wallet_logo.dart';
 
@@ -37,6 +39,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.surface,
       body: SafeArea(
         child: Center(
           child: FadeTransition(
@@ -46,15 +49,76 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const BadWalletLogo(size: 88),
-                  const SizedBox(height: 12),
+                  const BadWalletLogo(size: 116),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
-                    'Votre wallet, simplement.',
-                    style: AppTextStyles.bodyMedium,
+                    'Votre portefeuille mobile\nen toute simplicité',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontSize: 17,
+                      color: AppColors.inkMuted,
+                    ),
                   ),
+                  const SizedBox(height: AppSpacing.xxxl),
+                  const _BrandLoader(),
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandLoader extends StatefulWidget {
+  const _BrandLoader();
+
+  @override
+  State<_BrandLoader> createState() => _BrandLoaderState();
+}
+
+class _BrandLoaderState extends State<_BrandLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RotationTransition(
+      turns: _controller,
+      child: Container(
+        width: 42,
+        height: 42,
+        padding: const EdgeInsets.all(4),
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: SweepGradient(
+            colors: [
+              AppColors.brandPrimary,
+              AppColors.brandAccent,
+              AppColors.transparent,
+            ],
+          ),
+        ),
+        child: const DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            shape: BoxShape.circle,
           ),
         ),
       ),

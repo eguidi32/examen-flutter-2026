@@ -46,7 +46,7 @@ class AuthError extends AuthState {
 class AuthProvider extends ChangeNotifier {
   AuthProvider({required this.authRepository});
 
-  static const Duration _minimumSplashDuration = Duration(milliseconds: 1300);
+  static const Duration _minimumSplashDuration = Duration(seconds: 2);
 
   final AuthRepository authRepository;
 
@@ -67,12 +67,14 @@ class AuthProvider extends ChangeNotifier {
         return;
       }
 
-      _setState(
-        AuthPinEntry(
-          phoneNumber: session.phoneNumber,
-          mode: session.hasPin ? PinMode.unlock : PinMode.setup,
-        ),
-      );
+      if (session.hasPin) {
+        _setState(
+          AuthPinEntry(phoneNumber: session.phoneNumber, mode: PinMode.unlock),
+        );
+        return;
+      }
+
+      _setState(AuthAuthenticated(phoneNumber: session.phoneNumber));
     } catch (_) {
       await _waitForSplash(startedAt);
       _setState(
@@ -81,7 +83,31 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  void submitPhone(String rawPhoneNumber) {
+  Future<void> submitPhone(String rawPhoneNumber) async {
+    final phoneNumber = PhoneNumberFormatter.normalize(rawPhoneNumber);
+
+    if (!PhoneNumberFormatter.isValid(phoneNumber)) {
+      _setState(
+        const AuthPhoneEntry(
+          errorMessage: PhoneNumberFormatter.validationMessage,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await authRepository.savePhoneNumber(phoneNumber);
+      _setState(AuthAuthenticated(phoneNumber: phoneNumber));
+    } catch (_) {
+      _setState(
+        const AuthPhoneEntry(
+          errorMessage: 'Impossible de sauvegarder le numero securise.',
+        ),
+      );
+    }
+  }
+
+  void startPinSetup(String rawPhoneNumber) {
     final phoneNumber = PhoneNumberFormatter.normalize(rawPhoneNumber);
 
     if (!PhoneNumberFormatter.isValid(phoneNumber)) {

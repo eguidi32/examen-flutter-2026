@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_metrics.dart';
 
 class PinDigitIndicator extends StatelessWidget {
   const PinDigitIndicator({
@@ -20,16 +21,16 @@ class PinDigitIndicator extends StatelessWidget {
         final isFilled = index < length;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
+          duration: AppDurations.normal,
           curve: Curves.easeOut,
           width: isFilled ? 14 : 12,
           height: isFilled ? 14 : 12,
-          margin: const EdgeInsets.symmetric(horizontal: 6),
+          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           decoration: BoxDecoration(
-            color: isFilled ? AppColors.brandPrimary : AppColors.surfaceMuted,
+            color: isFilled ? AppColors.brandAccent : AppColors.surfaceMuted,
             shape: BoxShape.circle,
             border: Border.all(
-              color: isFilled ? AppColors.brandPrimary : AppColors.border,
+              color: isFilled ? AppColors.brandAccent : AppColors.border,
             ),
           ),
         );

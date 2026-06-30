@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_metrics.dart';
+import 'bad_wallet_icon_badge.dart';
 
 class AnimatedResultIcon extends StatelessWidget {
   const AnimatedResultIcon({required this.isSuccess, super.key});
@@ -21,14 +23,19 @@ class AnimatedResultIcon extends StatelessWidget {
         return Transform.scale(
           scale: value,
           child: Container(
-            width: 88,
-            height: 88,
+            padding: const EdgeInsets.all(AppSpacing.xs),
             decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              boxShadow: AppShadows.card,
             ),
-            child: Icon(icon, color: color, size: 48),
+            child: BadWalletIconBadge(
+              icon: icon,
+              color: color,
+              backgroundColor: background,
+              size: 88,
+              iconSize: 46,
+            ),
           ),
         );
       },

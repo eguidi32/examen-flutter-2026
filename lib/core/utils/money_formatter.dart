@@ -9,7 +9,7 @@ class MoneyFormatter {
 
   static String format(num amount, {String currency = 'XOF'}) {
     final roundedAmount = amount.round();
-    final suffix = currency == 'XOF' ? 'F CFA' : currency;
+    final suffix = currency == 'XOF' ? 'XOF' : currency;
     return '${_amountFormatter.format(roundedAmount)} $suffix';
   }
 

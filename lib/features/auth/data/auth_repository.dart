@@ -12,6 +12,8 @@ class AuthSession {
 abstract class AuthRepository {
   Future<AuthSession?> readSession();
 
+  Future<void> savePhoneNumber(String phoneNumber);
+
   Future<void> saveSession({required String phoneNumber, required String pin});
 
   Future<void> clearSession();
@@ -32,6 +34,11 @@ class SecureAuthRepository implements AuthRepository {
 
     final pin = await _storage.read(key: AuthStorageKeys.pin);
     return AuthSession(phoneNumber: phoneNumber, pin: pin);
+  }
+
+  @override
+  Future<void> savePhoneNumber(String phoneNumber) async {
+    await _storage.write(key: AuthStorageKeys.phoneNumber, value: phoneNumber);
   }
 
   @override

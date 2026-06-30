@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_metrics.dart';
 import '../theme/app_text_styles.dart';
 
 class BadWalletTextField extends StatelessWidget {
@@ -42,13 +43,13 @@ class BadWalletTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: AppTextStyles.labelMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.xs),
         AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: AppDurations.normal,
           curve: Curves.easeOut,
           decoration: BoxDecoration(
             color: enabled ? AppColors.surface : AppColors.surfaceMuted,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadii.md),
             border: Border.all(color: AppColors.border),
           ),
           child: TextFormField(
@@ -69,10 +70,7 @@ class BadWalletTextField extends StatelessWidget {
                   ? null
                   : Icon(prefixIcon, color: AppColors.inkMuted, size: 20),
               suffixIcon: suffixIcon,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
+              contentPadding: AppInsets.field,
             ),
           ),
         ),

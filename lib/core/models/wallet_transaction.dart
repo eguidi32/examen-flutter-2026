@@ -64,6 +64,10 @@ class WalletTransaction {
   }
 
   String titleFor(String phoneNumber) {
+    if (message != null && message!.trim().isNotEmpty) {
+      return message!.trim();
+    }
+
     return switch (type) {
       'DEPOSIT' || 'SEED' => 'Depot',
       'WITHDRAW' => 'Retrait',
@@ -75,6 +79,13 @@ class WalletTransaction {
   }
 
   String subtitleFor(String phoneNumber) {
+    if (message != null && message!.trim().isNotEmpty) {
+      if (reference.isNotEmpty) {
+        return reference;
+      }
+      return status;
+    }
+
     if (type == 'TRANSFER') {
       if (isCreditFor(phoneNumber) && senderPhone != null) {
         return 'Depuis $senderPhone';

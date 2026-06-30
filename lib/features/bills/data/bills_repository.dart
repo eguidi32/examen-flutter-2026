@@ -3,6 +3,7 @@ import '../../../core/network/api_client.dart';
 import 'bill.dart';
 import 'bill_payment_result.dart';
 import 'bill_service.dart';
+import 'mock_bills_data.dart';
 
 abstract class BillsRepository {
   Future<List<Bill>> fetchCurrentBills({
@@ -12,8 +13,10 @@ abstract class BillsRepository {
 
   Future<BillPaymentResult> payBills({
     required String phoneNumber,
+    required String walletCode,
     required BillService service,
     required List<String> references,
+    required double fallbackTotal,
   });
 }
 
@@ -29,35 +32,67 @@ class ApiBillsRepository implements BillsRepository {
     required BillService service,
   }) async {
     if (!service.isBackendSupported) {
-      return const [];
+      return MockBillsData.currentBills(
+        walletCode: walletCode,
+        service: service,
+      );
     }
 
-    final response = await _apiClient.get(
-      '${ApiConstants.externalFacturesPath}/$walletCode/current',
-      queryParameters: {'unite': service.id},
-    );
-    final items = List<Map<String, dynamic>>.from(response as List);
+    try {
+      final response = await _apiClient.get(
+        '${ApiConstants.externalFacturesPath}/$walletCode/current',
+        queryParameters: {'unite': service.id},
+      );
+      final items = List<Map<String, dynamic>>.from(response as List);
 
-    return items.map(Bill.fromJson).toList();
+      return items.map(Bill.fromJson).toList();
+    } on ApiException {
+      return MockBillsData.currentBills(
+        walletCode: walletCode,
+        service: service,
+      );
+    }
   }
 
   @override
   Future<BillPaymentResult> payBills({
     required String phoneNumber,
+    required String walletCode,
     required BillService service,
     required List<String> references,
+    required double fallbackTotal,
   }) async {
-    final response = await _apiClient.post(
-      '${ApiConstants.walletsPath}/pay-factures',
-      body: {
-        'phoneNumber': phoneNumber,
-        'serviceName': service.id,
-        'factureReferences': references,
-      },
-    );
+    if (!service.isBackendSupported) {
+      return MockBillsData.paymentResult(
+        phoneNumber: phoneNumber,
+        walletCode: walletCode,
+        service: service,
+        references: references,
+        totalAmount: fallbackTotal,
+      );
+    }
 
-    return BillPaymentResult.fromJson(
-      Map<String, dynamic>.from(response as Map),
-    );
+    try {
+      final response = await _apiClient.post(
+        '${ApiConstants.walletsPath}/pay-factures',
+        body: {
+          'phoneNumber': phoneNumber,
+          'serviceName': service.id,
+          'factureReferences': references,
+        },
+      );
+
+      return BillPaymentResult.fromJson(
+        Map<String, dynamic>.from(response as Map),
+      );
+    } on ApiException {
+      return MockBillsData.paymentResult(
+        phoneNumber: phoneNumber,
+        walletCode: walletCode,
+        service: service,
+        references: references,
+        totalAmount: fallbackTotal,
+      );
+    }
   }
 }

@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/models/wallet_transaction.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_metrics.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/widgets.dart';
 import '../data/history_repository.dart';
 import '../providers/history_provider.dart';
 
 class HistoryScreen extends StatelessWidget {
-  const HistoryScreen({required this.phoneNumber, super.key, this.repository});
+  const HistoryScreen({
+    required this.phoneNumber,
+    super.key,
+    this.repository,
+    this.embedded = false,
+    this.onExit,
+  });
 
   final String phoneNumber;
   final HistoryRepository? repository;
+  final bool embedded;
+  final VoidCallback? onExit;
 
   @override
   Widget build(BuildContext context) {
@@ -22,109 +29,283 @@ class HistoryScreen extends StatelessWidget {
         phoneNumber: phoneNumber,
         repository: repository ?? ApiHistoryRepository(),
       )..load(),
-      child: _HistoryView(phoneNumber: phoneNumber),
+      child: _HistoryView(
+        phoneNumber: phoneNumber,
+        embedded: embedded,
+        onExit: onExit,
+      ),
     );
   }
 }
 
 class _HistoryView extends StatelessWidget {
-  const _HistoryView({required this.phoneNumber});
+  const _HistoryView({
+    required this.phoneNumber,
+    required this.embedded,
+    this.onExit,
+  });
 
   final String phoneNumber;
+  final bool embedded;
+  final VoidCallback? onExit;
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<HistoryProvider>().state;
 
-    return Scaffold(
-      body: SafeArea(
-        child: switch (state) {
-          HistoryLoading() => const _HistorySkeleton(),
-          HistoryError(:final message) => BadWalletErrorState(
-            message: message,
-            onRetry: context.read<HistoryProvider>().load,
-          ),
-          HistoryLoaded(:final transactions) => _HistoryLoadedView(
-            phoneNumber: phoneNumber,
-            transactions: transactions,
-          ),
-        },
+    final content = switch (state) {
+      HistoryLoading() => const _HistorySkeleton(),
+      HistoryError(:final message) => BadWalletErrorState(
+        message: message,
+        onRetry: context.read<HistoryProvider>().load,
       ),
-    );
+      HistoryLoaded() => _HistoryLoadedView(
+        phoneNumber: phoneNumber,
+        state: state,
+        onExit: onExit ?? () => Navigator.of(context).maybePop(),
+      ),
+    };
+
+    if (embedded) {
+      return content;
+    }
+
+    return Scaffold(body: SafeArea(child: content));
   }
 }
 
 class _HistoryLoadedView extends StatelessWidget {
   const _HistoryLoadedView({
     required this.phoneNumber,
-    required this.transactions,
+    required this.state,
+    required this.onExit,
   });
 
   final String phoneNumber;
-  final List<WalletTransaction> transactions;
+  final HistoryLoaded state;
+  final VoidCallback onExit;
 
   @override
   Widget build(BuildContext context) {
-    final grouped = _groupTransactions(transactions);
-
     return RefreshIndicator(
       color: AppColors.brandPrimary,
       onRefresh: context.read<HistoryProvider>().load,
       child: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: AppInsets.screen,
         children: [
-          _Header(onBack: () => Navigator.of(context).maybePop()),
-          const SizedBox(height: 18),
-          if (transactions.isEmpty)
+          BadWalletHeader(
+            title: 'Historique',
+            onBack: onExit,
+            trailing: BadWalletIconBadge(
+              icon: Icons.filter_alt_outlined,
+              color: AppColors.brandPrimary,
+              backgroundColor: AppColors.surface,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _SearchBox(
+            initialValue: state.query,
+            onChanged: context.read<HistoryProvider>().updateQuery,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.sm,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _FilterPill(
+                label: 'Tout',
+                isSelected: state.filter == HistoryFilter.all,
+                color: AppColors.brandPrimary,
+                onTap: () => context.read<HistoryProvider>().updateFilter(
+                  HistoryFilter.all,
+                ),
+              ),
+              _FilterPill(
+                label: 'Entrées',
+                isSelected: state.filter == HistoryFilter.credits,
+                color: AppColors.success,
+                onTap: () => context.read<HistoryProvider>().updateFilter(
+                  HistoryFilter.credits,
+                ),
+              ),
+              _FilterPill(
+                label: 'Sorties',
+                isSelected: state.filter == HistoryFilter.debits,
+                color: AppColors.error,
+                onTap: () => context.read<HistoryProvider>().updateFilter(
+                  HistoryFilter.debits,
+                ),
+              ),
+              _PeriodPill(),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          if (state.transactions.isEmpty)
             const SizedBox(
               height: 420,
               child: BadWalletEmptyState(
                 title: 'Aucune transaction',
-                message: 'Les mouvements de votre wallet apparaitront ici.',
+                message: 'Aucun mouvement ne correspond à votre recherche.',
                 icon: Icons.receipt_long_rounded,
               ),
             )
           else
-            ...grouped.entries.expand(
-              (entry) => [
-                Padding(
-                  padding: const EdgeInsets.only(top: 12, bottom: 6),
-                  child: Text(entry.key, style: AppTextStyles.labelMedium),
-                ),
-                BadWalletCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Column(
-                    children: [
-                      for (var index = 0; index < entry.value.length; index++)
-                        Column(
-                          children: [
-                            TransactionListTile(
-                              transaction: entry.value[index],
-                              currentPhone: phoneNumber,
-                            ),
-                            if (index != entry.value.length - 1)
-                              const Divider(),
-                          ],
+            BadWalletCard(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Column(
+                children: [
+                  for (
+                    var index = 0;
+                    index < state.transactions.length;
+                    index++
+                  )
+                    Column(
+                      children: [
+                        TransactionListTile(
+                          transaction: state.transactions[index],
+                          currentPhone: phoneNumber,
                         ),
-                    ],
-                  ),
-                ),
-              ],
+                        if (index != state.transactions.length - 1)
+                          const Divider(),
+                      ],
+                    ),
+                ],
+              ),
             ),
         ],
       ),
     );
   }
+}
 
-  Map<String, List<WalletTransaction>> _groupTransactions(
-    List<WalletTransaction> transactions,
-  ) {
-    final grouped = <String, List<WalletTransaction>>{};
-    for (final transaction in transactions) {
-      final label = DateFormatter.groupLabel(transaction.createdAt);
-      grouped.putIfAbsent(label, () => []).add(transaction);
-    }
-    return grouped;
+class _SearchBox extends StatefulWidget {
+  const _SearchBox({required this.initialValue, required this.onChanged});
+
+  final String initialValue;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_SearchBox> createState() => _SearchBoxState();
+}
+
+class _SearchBoxState extends State<_SearchBox> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppShadows.card,
+      ),
+      child: TextField(
+        controller: _controller,
+        onChanged: widget.onChanged,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: AppColors.inkMuted,
+          ),
+          hintText: 'Rechercher une transaction...',
+          hintStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.inkSoft,
+          ),
+          contentPadding: AppInsets.field,
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
+    required this.label,
+    required this.isSelected,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadii.pill),
+      child: AnimatedContainer(
+        duration: AppDurations.normal,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? color : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+          border: Border.all(color: isSelected ? color : AppColors.border),
+          boxShadow: isSelected ? AppShadows.colored(color) : AppShadows.card,
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.labelMedium.copyWith(
+            color: isSelected ? AppColors.white : color,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PeriodPill extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.calendar_month_outlined,
+            color: AppColors.inkMuted,
+            size: 18,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text('01 Mai - 31 Mai', style: AppTextStyles.labelMedium),
+          const SizedBox(width: AppSpacing.xxs),
+          const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: AppColors.inkMuted,
+            size: 18,
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -134,40 +315,19 @@ class _HistorySkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: AppInsets.screen,
       children: const [
         BadWalletSkeletonBox(width: 170, height: 34),
-        SizedBox(height: 24),
+        SizedBox(height: AppSpacing.xl),
         BadWalletSkeletonBox(width: 120, height: 16),
-        SizedBox(height: 10),
+        SizedBox(height: AppSpacing.sm),
         BadWalletSkeletonBox(width: double.infinity, height: 76),
-        SizedBox(height: 10),
+        SizedBox(height: AppSpacing.sm),
         BadWalletSkeletonBox(width: double.infinity, height: 76),
-        SizedBox(height: 20),
+        SizedBox(height: AppSpacing.lg),
         BadWalletSkeletonBox(width: 120, height: 16),
-        SizedBox(height: 10),
+        SizedBox(height: AppSpacing.sm),
         BadWalletSkeletonBox(width: double.infinity, height: 76),
-      ],
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
-          tooltip: 'Retour',
-          onPressed: onBack,
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        const SizedBox(width: 8),
-        Text('Historique', style: AppTextStyles.headlineLarge),
       ],
     );
   }

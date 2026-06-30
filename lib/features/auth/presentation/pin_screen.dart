@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_metrics.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/widgets.dart';
 import '../providers/auth_provider.dart';
-import 'widgets/bad_wallet_logo.dart';
 import 'widgets/pin_digit_indicator.dart';
 import 'widgets/pin_keypad.dart';
 
@@ -97,36 +97,42 @@ class _PinScreenState extends State<PinScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: AppInsets.screen,
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 430),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 12),
-                  const BadWalletLogo(size: 64, showWordmark: false),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: AppSpacing.sm),
+                  BadWalletBrandPanel(
+                    title: 'Acces securise',
+                    subtitle: widget.phoneNumber,
+                    compact: true,
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
                   Text(_title, style: AppTextStyles.headlineLarge),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(_description, style: AppTextStyles.bodyMedium),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: AppSpacing.xl),
                   BadWalletCard(
                     child: Column(
                       children: [
                         PinDigitIndicator(length: _pin.length),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpacing.sm),
                         Text(
                           '4 chiffres minimum',
                           style: AppTextStyles.labelMedium,
                         ),
                         AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
+                          duration: AppDurations.normal,
                           child: widget.errorMessage == null
-                              ? const SizedBox(height: 24)
+                              ? const SizedBox(height: AppSpacing.xl)
                               : Padding(
                                   key: const ValueKey('pin-error'),
-                                  padding: const EdgeInsets.only(top: 12),
+                                  padding: const EdgeInsets.only(
+                                    top: AppSpacing.sm,
+                                  ),
                                   child: Text(
                                     widget.errorMessage!,
                                     textAlign: TextAlign.center,
@@ -136,12 +142,12 @@ class _PinScreenState extends State<PinScreen> {
                                   ),
                                 ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppSpacing.xs),
                         PinKeypad(
                           onDigitPressed: _appendDigit,
                           onBackspacePressed: _deleteDigit,
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppSpacing.lg),
                         BadWalletPrimaryButton(
                           label: _buttonLabel,
                           icon: Icons.lock_open_rounded,

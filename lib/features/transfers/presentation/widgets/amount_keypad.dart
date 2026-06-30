@@ -2,23 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_metrics.dart';
 import '../../../../core/theme/app_text_styles.dart';
 
 class AmountKeypad extends StatelessWidget {
   const AmountKeypad({
     required this.onDigitPressed,
     required this.onBackspacePressed,
-    required this.onClearPressed,
     super.key,
+    this.onSeparatorPressed,
   });
 
   final ValueChanged<String> onDigitPressed;
   final VoidCallback onBackspacePressed;
-  final VoidCallback onClearPressed;
+  final VoidCallback? onSeparatorPressed;
 
   @override
   Widget build(BuildContext context) {
-    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', 'del'];
+    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '0', 'del'];
 
     return GridView.builder(
       shrinkWrap: true,
@@ -26,8 +27,8 @@ class AmountKeypad extends StatelessWidget {
       itemCount: keys.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
+        mainAxisSpacing: AppSpacing.sm,
+        crossAxisSpacing: AppSpacing.sm,
         childAspectRatio: 1.65,
       ),
       itemBuilder: (context, index) {
@@ -39,11 +40,11 @@ class AmountKeypad extends StatelessWidget {
             onTap: onBackspacePressed,
           );
         }
-        if (keyValue == 'C') {
+        if (keyValue == ',') {
           return _AmountKey(
-            semanticLabel: 'Vider',
+            semanticLabel: 'Virgule',
             label: keyValue,
-            onTap: onClearPressed,
+            onTap: onSeparatorPressed ?? () {},
           );
         }
         return _AmountKey(
@@ -98,15 +99,15 @@ class _AmountKeyState extends State<_AmountKey> {
           widget.onTap();
         },
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 110),
+          duration: AppDurations.quick,
           curve: Curves.easeOut,
           scale: _isPressed ? 0.96 : 1,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+            duration: AppDurations.normal,
             curve: Curves.easeOut,
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadii.md),
               border: Border.all(color: AppColors.border),
             ),
             child: Center(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_metrics.dart';
 import '../../../../core/theme/app_text_styles.dart';
 
 class PinKeypad extends StatelessWidget {
@@ -24,8 +25,8 @@ class PinKeypad extends StatelessWidget {
       itemCount: keys.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+        mainAxisSpacing: AppSpacing.sm,
+        crossAxisSpacing: AppSpacing.sm,
         childAspectRatio: 1.45,
       ),
       itemBuilder: (context, index) {
@@ -95,23 +96,17 @@ class _PinKeyState extends State<_PinKey> {
           widget.onTap();
         },
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 110),
+          duration: AppDurations.quick,
           curve: Curves.easeOut,
           scale: _isPressed ? 0.96 : 1,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+            duration: AppDurations.normal,
             curve: Curves.easeOut,
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadii.md),
               border: Border.all(color: AppColors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.brandPrimaryDark.withValues(alpha: 0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+              boxShadow: AppShadows.card,
             ),
             child: Center(
               child: widget.icon == null

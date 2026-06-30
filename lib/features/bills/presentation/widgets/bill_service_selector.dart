@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_metrics.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../data/bill_service.dart';
 
 class BillServiceSelector extends StatelessWidget {
@@ -17,11 +19,11 @@ class BillServiceSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 92,
+      height: 108,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: BillService.values.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, index) {
           final service = BillService.values[index];
           final isSelected = service == selectedService;
@@ -56,28 +58,46 @@ class _ServiceChip extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: AppDurations.normal,
         curve: Curves.easeOut,
-        width: 94,
-        padding: const EdgeInsets.all(12),
+        width: 108,
+        padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.brandPrimaryLight : AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadii.md),
           border: Border.all(
-            color: isSelected ? AppColors.brandPrimary : AppColors.border,
+            color: isSelected ? AppColors.brandAccent : AppColors.border,
           ),
+          boxShadow: isSelected ? AppShadows.accent : AppShadows.none,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(_serviceIcon(service), color: color, size: 24),
-            const SizedBox(height: 8),
+            BadWalletIconBadge(
+              icon: _serviceIcon(service),
+              color: color,
+              backgroundColor: isSelected
+                  ? AppColors.brandAccentSoft
+                  : AppColors.surfaceMuted,
+              size: 36,
+              iconSize: 20,
+              showBorder: false,
+            ),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               service.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.labelMedium.copyWith(color: AppColors.ink),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              service.category,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppTextStyles.labelMedium.copyWith(
-                color: isSelected ? AppColors.brandPrimary : AppColors.inkMuted,
+                color: AppColors.inkMuted,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -99,8 +119,8 @@ class _ServiceChip extends StatelessWidget {
     return switch (service) {
       BillService.ism => AppColors.brandPrimary,
       BillService.woyafal => AppColors.warning,
-      BillService.rapido => AppColors.success,
-      BillService.senelec => AppColors.error,
+      BillService.rapido => AppColors.brandAccentMuted,
+      BillService.senelec => AppColors.brandPrimaryDark,
     };
   }
 }

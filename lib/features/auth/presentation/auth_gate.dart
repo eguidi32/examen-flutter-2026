@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../dashboard/data/dashboard_repository.dart';
+import '../../dashboard/presentation/dashboard_screen.dart';
 import '../providers/auth_provider.dart';
 import 'auth_error_screen.dart';
 import 'phone_entry_screen.dart';
 import 'pin_screen.dart';
 import 'splash_screen.dart';
-import '../../dashboard/presentation/dashboard_screen.dart';
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+  const AuthGate({super.key, this.dashboardRepository});
+
+  final DashboardRepository? dashboardRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +38,7 @@ class AuthGate extends StatelessWidget {
         AuthAuthenticated(:final phoneNumber) => DashboardScreen(
           key: const ValueKey('dashboard'),
           phoneNumber: phoneNumber,
+          repository: dashboardRepository,
         ),
         AuthError(:final message) => AuthErrorScreen(
           key: const ValueKey('auth-error'),

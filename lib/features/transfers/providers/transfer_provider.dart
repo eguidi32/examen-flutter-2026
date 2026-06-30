@@ -147,6 +147,16 @@ class TransferProvider extends ChangeNotifier {
     return receiverError == null && amountError == null;
   }
 
+  void setDraftError({String? receiverError, String? amountError}) {
+    _draft = _draft.copyWith(
+      receiverError: receiverError,
+      amountError: amountError,
+      clearReceiverError: receiverError == null,
+      clearAmountError: amountError == null,
+    );
+    _syncEditingState();
+  }
+
   Future<TransferReceipt?> submit(String senderPhone) async {
     if (!validateDraft(senderPhone)) {
       return null;

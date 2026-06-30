@@ -6,15 +6,21 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/presentation/auth_gate.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/dashboard/data/dashboard_repository.dart';
 
 void main() {
   runApp(const BadWalletApp());
 }
 
 class BadWalletApp extends StatelessWidget {
-  const BadWalletApp({super.key, this.authRepository});
+  const BadWalletApp({
+    super.key,
+    this.authRepository,
+    this.dashboardRepository,
+  });
 
   final AuthRepository? authRepository;
+  final DashboardRepository? dashboardRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +32,7 @@ class BadWalletApp extends StatelessWidget {
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
-        home: const AuthGate(),
+        home: AuthGate(dashboardRepository: dashboardRepository),
       ),
     );
   }
